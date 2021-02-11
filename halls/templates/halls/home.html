@@ -1,0 +1,402 @@
+{% extends 'halls/base.html' %}
+{% load static %}
+{% block script %}
+<script>
+$(document).ready(function(){
+    var text = $('#id_search_term').val();
+    var nextPageUrl='';
+    fetchData(text);
+    autoPlayYouTubeModal()
+
+function fetchData(query){
+
+    $.ajax({
+            url:'/api/halls/',
+            data:{
+                'q':query,
+            },
+            // dataType:'json',
+            method:"GET",
+            success: function(data){
+                $('.halls').text('');
+                $('.halls').append('<div class="row"> <h1> Hot collections</h1> </div>');
+                var addedHtml = parseResults(data);
+                $('.halls').append(addedHtml);
+                if(data.next){
+                    nextPageUrl = data.next;
+                    $('#loadmore').css("display","block");
+                }
+               
+                console.log(nextPageUrl);
+
+            },
+            error: function(data){
+                console.log("error")
+                console.log(data)
+            }
+
+})
+
+}
+
+function parseResults(data){
+    var results=" ";
+    var verb="Saved";
+    var btnClass="btn-primary";
+
+
+    
+    
+    console.log(data);
+                    
+    data.results.forEach(function(item){
+        if(!item["did_save"]){
+            verb = "Save";
+            btnClass = "btn-outline-primary";
+        }
+
+        results +='<div class="row intro"> <h2 style="display:inline;padding: 0;">'+ item["title"] +'</h2>';
+        item["tags"].forEach(function(tag){   
+            results += '<input type="button" class="hall_tag " value=#'+tag+' name = "tag">';    
+        })
+        results +='<h6 style="display:inline; margin: 0;padding: 0; color:lightgrey">   | Created By <a href= "'+item["user"]["url"] +'">' + item["user"]["username"] + '</a> </h6>';
+        results += '</div>';
+        results += '<div class="row"><button class="save_btn btn '+btnClass+'" data_id='+ item["id"]+'>'+verb+ '&nbsp'+item["saves"]+'</button>';
+        results += '</div>';
+
+        
+        // results += '<a href="#" class="save_btn btn btn-primary" data_id='+ item["id"]+'>Save '+ item["saves"]+'</a>';
+        // results += '<div class="row">';
+        // item["tags"].forEach(function(tag){   
+        //     results += '<input type="button" class="hall_tag " value=#'+tag+' name = "tag" >';    
+        // })
+        // results += '</div>';
+       
+        var listId=[];
+        item["videos"].forEach(function(value){
+            listId.push(value["youtube_id"]);
+        })
+        console.log(listId);
+
+
+
+
+        results +='<div class="row flex-nowrap overflow-auto">';
+        $.each(item["videos"],function(key,value){
+            results += '<div class="col-md-5 mt-3" style="padding-left:0 !important"><div class="card mb-4 shadow-sm">';
+                results += '<div class="holder">'
+            results += '<iframe width="100%" height="225" src="https://www.youtube.com/embed/'+value["youtube_id"]+' "frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>';
+            results += '<div class="overlay trigger" src="https://www.youtube.com/embed/'+value["youtube_id"]+ '" data-target="#exampleModal" data-toggle="modal" data-list="'+listId.join()+'"></div>'
+            results += '</div>'
+            results += '<div class="card-body"><p class="card-text">'+ value['title'] + '</p>'+'</div></div></div>';
+            // $(".next-video").data("url","https://www.youtube.com/embed/"+item["videos"][key+1]["youtube_id"])
+                            // results += '<a href="#" class="btn btn-primary" onclick = "addVideo(\''+video["id"]["videoId"]+'\')"> Add</a></div></div></div>';
+            })
+                        // results+=item['snippet']['title'
+        results+='</div>';
+    
+        });
+    
+        return results;
+                    
+                    
+   
+    // if (data.next){
+    //     var button = '<a href="#" class="btn btn-primary" id="loadmore">Load More Halls</a>';
+    //     $('.halls').append(button);
+    // }
+
+
+}
+
+$("#loadmore").click(function(event){
+    event.preventDefault()
+    if (nextPageUrl){
+        $.ajax({
+            url:nextPageUrl,
+            data:{
+                'q':text,
+            },
+            // dataType:'json',
+            method:"GET",
+            success: function(data){
+                parseResults(data);
+                if(data.next){
+                    nextPageUrl = data.next;
+                }
+               else{
+                $('#loadmore').css("display","none");
+               }
+
+            },
+            error: function(data){
+                console.log("error")
+                console.log(data)
+            }
+
+})
+
+    }
+})
+
+$(document.body).on("click",".save_btn", function(e){
+    e.preventDefault()
+    var this_ = $(this)
+    var HallId = this_.attr("data_id")
+    var savedUrl = '/api/halls/'+HallId+"/save"
+    $.ajax({
+        method: "GET",
+        url: savedUrl,
+        success: function(data){
+            if(data.saved){
+                this_.text("Unsaved")
+            }else{
+                this_.text("Saved")
+            }
+        },
+        error:function(data){
+            console.log(data)
+            console.log("error")
+        }
+
+    })
+
+})
+$(document.body).on("click",".trigger2", function(e){
+ 
+ e.preventDefault();
+ var theModal = $(this).data("target");
+ var videoSRC = $(this).attr("src");
+ 
+ var videoSRCauto = videoSRC + "?autoplay=1";
+
+ console.log(videoSRCauto);
+ $('.embed-responsive' + ' iframe').attr('src', videoSRCauto);
+ $(theModal).on('hidden.bs.modal', function(e) {
+   $('.embed-responsive' + ' iframe').attr('src', '');
+ });
+ $("#exampleModal").modal("show");
+});
+
+
+$(document.body).on("click",".trigger", function(e){
+ 
+    e.preventDefault();
+    var theModal = $(this).data("target");
+    var videoSRC = $(this).attr("src");
+    var orilist = $(this).data("list");
+    var list = $(this).data("list").split(",");
+    
+    console.log(list);
+    var videoSRCauto = videoSRC + "?autoplay=1";
+
+    console.log(videoSRCauto);
+    $(theModal + ' iframe').attr('src', videoSRCauto);
+    $(theModal).on('hidden.bs.modal', function(e) {
+      $(theModal + ' iframe').attr('src', '');
+    });
+    $('.video-list').text("");
+   
+    var videoRes='';
+    videoRes +='<div class="row flex-nowrap overflow-auto">';
+        list.forEach(function(item){
+            console.log(item)
+            
+            videoRes += '<div class="col-md-4" style="padding-left:0 !important">';
+            videoRes += '<div class="holder">'
+            videoRes += '<iframe width="100%" src="https://www.youtube.com/embed/'+item+' "frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>';
+            videoRes += '<div class="overlay-2 trigger2" src="https://www.youtube.com/embed/'+item+ '" data-target="#exampleModal" data-list="'+orilist+'"></div>'
+            videoRes += '</div></div>'
+            // videoRes+='</div></div>';
+            // results += '<div class="card-body"><p class="card-text">'+ value['title'] + '</p>'+'</div></div></div>';
+            // $(".next-video").data("url","https://www.youtube.com/embed/"+item["videos"][key+1]["youtube_id"])
+                            // results += '<a href="#" class="btn btn-primary" onclick = "addVideo(\''+video["id"]["videoId"]+'\')"> Add</a></div></div></div>';
+            console.log(videoRes)
+                        })
+    videoRes += '</div>'
+                        // results+=item['snippet']['title'
+    console.log(videoRes)
+    $('.video-list').append(videoRes);
+})
+
+
+$('.hall_tag').click(function(){
+            var query_tag = $(this).val().replace('#','');
+            console.log(query_tag)
+            var this_ = $(this)
+            this_.toggleClass("clicked_tag")
+            $(".hall_tag").not(this).removeClass("clicked_tag")
+             
+            var text = $('#id_search_term').val();
+            if (this_.hasClass("clicked_tag")){
+                $.ajax({
+                    url:'/api/halls/',
+                    data:{
+                        'q':text,
+                        'tag':query_tag
+                    },
+                    // dataType:'json',
+                    method:"GET",
+                    success: function(data){
+                        console.log(data)
+                        var results=" ";
+                            $('.halls').css("display","none");
+                            $('#search_results').text("");
+                            results +='<div class="row"> <h1> Search Results </h1> </div>';
+                            addedHtml = parseResults(data);
+                            $('#search_results').append(addedHtml);
+                            console.log(data);
+                            
+                            if(data.next){
+                                nextPageUrl = data.next;
+                            }
+                            else{
+                                $('#loadmore').css("display","none");
+                            }
+
+                    },
+                    error: function(data){
+                        console.log("error")
+                        console.log(data)
+                    }
+        })
+
+            }
+            else{
+                $('.halls').css("display","block");
+                $('.halls').text("");
+                fetchData(text);
+                $('#search_results').text('');
+            }
+            
+    })
+        $('#id_search_term').keyup(function() {
+            clearTimeout(delayTimer);
+            // $('.gallery').text('');
+            // $('#search_results').text('Loading...');
+            delayTimer = setTimeout(function() {
+                var text = $('#id_search_term').val();
+                $('.gallery').css("display","none");
+                $('#search_results').text('Loading...');
+                $.ajax({
+                    url:'/api/halls/',
+                    data:{
+                        'q':text
+                    },
+                    // dataType:'json',
+                    method:"GET",
+                    success: function(data){
+                        var results=" ";
+                            $('#search_results').text('');
+                            results +='<div class="row"> <h1> Search Results </h1> </div>';
+                            console.log(data);
+                            
+                            data.results.forEach(function(item){
+
+                                results +='<div class="row"> <h2>'+ item["title"] +'</h2> </div>';
+        
+                                results +='<div class="row row-horizon">';
+                                item["videos"].forEach(function(video){
+                                    results += '<div class="col-md-4 mt-3"><div class="card mb-4 shadow-sm">';
+                                    results += '<iframe width="100%" height="225" src="https://www.youtube.com/embed/'+video["youtube_id"]+' "frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>';
+                                    results += '<div class="card-body"><p class="card-text">'+ video['title'] + '</p>'+'</div></div></div>';
+                                          })
+                                results+='</div>';
+                            });
+                            
+                            
+                            $('#search_results').append(results);	
+                    },
+                    error: function(data){
+                        console.log("error")
+                        console.log(data)
+                    }
+                })
+            },1000);
+
+        })
+});
+function autoPlayYouTubeModal() {
+  var trigger = $('.trigger');
+  trigger.click(function(e) {
+    console.log("!!!!!!!!")
+    e.preventDefault();
+    var theModal = $(this).data("target");
+    var videoSRC = $(this).attr("src");
+    var videoSRCauto = videoSRC + "?autoplay=1";
+    console.log("!!!!!!!!")
+    console.log(videoSRCauto);
+    $(theModal + ' iframe').attr('src', videoSRCauto);
+    $(theModal).on('hidden.bs.modal', function(e) {
+      $(theModal + ' iframe').attr('src', '');
+    });
+  });
+};
+</script>
+
+
+{% endblock script %}
+
+{% block content %}
+
+<section class="jumbotron text-center">
+    <div class="container">
+        <h1 class="jumbotron-heading">What's your personal Hall of Fame?</h1>
+        <p class="lead text-muted">You know what they are. They are your goto videos. You have a top 10 list and its time to check</p>
+        <p>
+            <a href="{% url 'create_hall' %}" class="btn btn-primary">Create Your Hall of Fame</a>
+        </p>
+    </div>
+    <div class="row top-searchbar">
+        <div class="search-results-header col-md-9">
+            <div class="search-input-container col-md-9">
+                <div class="search-input-wrapper">
+                    <form class="form-inline" method="GET">
+                        <div class="form-group ">
+                            
+                                <input id = "id_search_term" class="form-control input-normal" type="search" name="q" value = '{{request.GET.q}}' placeholder="Search" aria-label="Search">
+                            </div>
+                        
+                    <button class="btn btn-outline-success my-2 my-sm-0" type="submit">Search</button> 
+                    </form>
+    
+                </div>
+                
+                <form class="form-inline " method="GET">
+        
+    
+                    {% for tag in tags %}
+                        <input type="button" class="hall_tag " value='#{{tag}}' name = "tag" >
+                    {% endfor %}
+                
+            </form>
+    
+            </div>
+        </div>
+       
+        </div>
+</section>
+
+<section>
+<div class="container">
+
+<div class="halls"></div>
+<div id="search_results"></div>
+<div class="row">
+    <a href="#" class="btn btn-primary" id="loadmore" style="display: none;">Load More Halls</a>
+</div>
+
+
+</div>
+   
+
+</section>
+
+
+
+
+<div class="container">
+          
+</div>
+
+{% endblock content %}

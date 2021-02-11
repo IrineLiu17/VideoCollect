@@ -1,0 +1,246 @@
+{% extends 'halls/base.html' %}
+{% load static %}
+
+
+{% block content %}
+
+<div class="container">
+    <h1>Add Video {{hall.title}} </h1>
+    <!-- <form method="post" id="video_url">
+        {% csrf_token %}
+        {% load widget_tweaks %}
+        {% for field in form %}
+
+        <div class="form-group {% if field.errors %} alert alert-danger {% endif %}">
+        
+        {{field.errors}}
+        {{field.label_tag}}
+        {% render_field field class="form-control" %}
+        </div>
+        {% endfor %}
+        {% for field in form%}
+
+        <div class="form-group {% if field.errors %} alert alert-danger {% endif %}">
+        
+        {{field.errors}}
+        {{field.label_tag}}
+        {% render_field field class="form-control" %}
+        </div>
+        {% endfor %}
+        {% for field in form %}
+
+        <div class="form-group {% if field.errors %} alert alert-danger {% endif %}">
+        
+        {{field.errors}}
+        {{field.label_tag}}
+        {% render_field field class="form-control" %}
+        </div>
+        {% endfor %}
+            
+        <button type="submit" value="Add">Add</button>
+    </form> -->
+    <form id="form-container" method="POST">
+        {% csrf_token %}
+        {{video_formset.management_form}}
+        
+        {% for form in video_formset %}
+        <div class="video-form">
+            {% load widget_tweaks %}
+            {% for field in form.visible_fields %}
+
+            <div class="form-group {% if field.errors %} alert alert-danger {% endif %}">
+            
+            {{field.errors}}
+            {{field.label_tag}}
+            {% render_field field class="form-control" %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+        <button id="add-form" type="button">Add Another Video</button>
+        <button type="submit">Submit</button>
+    </form>
+   
+        
+    <form>
+        {% for field in search_form %}
+
+        <p>
+        {{field.errors}}
+        {{field.label_tag}}
+        {{field}}
+        </p>
+        
+        {% endfor %}
+    </form>
+    <div id="search_results">
+      
+
+    </div>
+    <a href="#" class="btn btn-primary" id="loadmore">Load More Videos</a>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.2.20/angular.min.js"></script>
+
+    <script src="{% static 'tagsinput.js' %}"></script>
+   
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/rainbow/1.2.0/js/rainbow.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/rainbow/1.2.0/js/language/generic.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/rainbow/1.2.0/js/language/html.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/rainbow/1.2.0/js/language/javascript.js"></script>
+    {% block script %}
+    <script>
+    var delayTimer;
+    var nextPage;
+    var addedVideo = 0;
+    var videoForm = $(".video-form")
+    console.log(videoForm.length)
+    var formNum = $(".video-form").length
+        let container = $("#form-container")
+        
+        let totalForms = $("#id_form-TOTAL_FORMS")
+        function addVideo(video){
+            console.log(video)
+            if (addedVideo==0){
+                $('#id_form-'+formNum+'-url').val('https://www.youtube.com/watch?v='+video.split(",")[0]);
+                $('#id_form-'+formNum+'-title').val(video.split(",")[1]);
+                addedVideo++
+            }
+            else{
+                newForm = $($(".video-form").get(0)).clone()
+                addedVideo++
+               
+               
+               let formRegex = RegExp(`form-(\\d){1}-`,'g')
+               console.log(formNum)
+
+               formNum++
+               console.log(formNum)
+               var txt = newForm.html()
+               console.log(txt)
+               newForm.html(txt.replace(formRegex, `form-${formNum}-`))
+       
+               console.log($('#id_'+`form-${formNum}-`+'url'))
+               
+               newForm.insertBefore("#add-form")
+               $('#id_form-'+formNum+'-url').val('https://www.youtube.com/watch?v='+video.split(",")[0]);
+               $('#id_form-'+formNum+'-title').val(video.split(",")[1]);
+               $("#id_form-TOTAL_FORMS").attr('value', `${formNum+1}`)
+            }
+            
+           
+       // $('#id_url').val('https://www.youtube.com/watch?v='+video_id);
+       // $('#video_url').submit();
+
+   }
+$(document).ready(function(){
+    // addButton.click(function(e){
+    //         e.preventDefault()
+    //         newForm = videoForm.clone()
+    //         console.log(videoForm)
+    //         var txt = newForm.html();
+    //         let formRegex = RegExp(`form-(\\d){1}-`,'g')
+
+    //         formNum++
+    //         newForm.html(txt.replace(formRegex, `form-${formNum}-`))
+    //         newForm.insertBefore(addButton)
+            
+    //         totalForms.attr('value', `${formNum+1}`)
+    // })
+
+    $('#loadmore').css("display","none");
+            $('#id_search_term').keyup(function() {
+                clearTimeout(delayTimer);
+                $('#search_results').text('Loading...');
+                delayTimer = setTimeout(function() {
+                    var text = $('#id_search_term').val();
+                    $.ajax({
+                        url:'/video/search',
+                        data:{
+                            'search_term':text
+                        },
+                        dataType:'json',
+                        success:function(data){
+                            var results=" ";
+                            $('#search_results').text('');
+                            results+='<div class="row">';
+                            data['items'].forEach(function(item){
+                                results += '<div class="col-md-4 mt-3"><div class="card mb-4 shadow-sm">';
+                                results += '<iframe width="100%" height="225" src="https://www.youtube.com/embed/'+item["id"]["videoId"]+' "frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>';
+                                results += '<div class="card-body"><p class="card-text">'+ item['snippet']['title'] + '</p>';
+                                results += '<a href="#" class="btn btn-primary addvideo" onclick = "addVideo(\''+item["id"]["videoId"]+','+item['snippet']['title']+'\')"> Add</a></div></div></div>';
+                                // results+=item['snippet']['title'
+                            });
+                            results+='</div>';
+                            console.log(data);
+                            $('#search_results').append(results);
+                            $('#loadmore').css("display","block");
+                            if (data.nextPageToken){
+                                nextPage = data.nextPageToken
+                            }
+                            let addvideoBtn = $(".addvideo")
+                           },
+                        error: function(data){
+                            console.log("error")
+                            console.log(data)
+                        }
+                    });
+                    
+
+                },1000);
+
+               
+            })
+            
+
+            
+            $("#loadmore").click(function(event){
+                event.preventDefault()
+                    var text = $('#id_search_term').val();
+                    $.ajax({
+                        url:'/video/search',
+                        data:{
+                            'search_term':text,
+                            'quote':nextPage
+                        },
+                        dataType:'json',
+                        success: function(data){
+                            var results=" ";
+                            results+='<div class="row">';
+                            data['items'].forEach(function(item){
+
+                                results += '<div class="col-md-4 mt-3"><div class="card mb-4 shadow-sm">';
+                                results += '<iframe width="100%" height="225" src="https://www.youtube.com/embed/'+item["id"]["videoId"]+' "frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>';
+                                results += '<div class="card-body"><p class="card-text">'+ item['snippet']['title'] + '</p>';
+                                results += '<a href="#" class="btn btn-primary" onclick = "addVideo(\''+item["id"]["videoId"]+','+item['snippet']['title']+'\')"> Add</a></div></div></div>';
+                                // results+=item['snippet']['title'
+                            });
+                            results+='</div>';
+                            console.log(data);
+                            $('#search_results').append(results);
+                            if (data.nextPageToken){
+                                nextPage = data.nextPageToken
+                            }else{
+                                 $('#loadmore').css("display","none");
+                            }
+                        },
+                        error: function(data){
+                            console.log("error")
+                            console.log(data)
+                        }
+
+            })
+            })
+        })
+    
+                console.log(formNum)
+               
+        
+                     
+</script>
+{% endblock script %}
+    {% endblock content %}
+
+    
+
+
+
