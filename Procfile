@@ -1,0 +1,1 @@
+web: gunicorn hofvidz.wsgi --log-file -
